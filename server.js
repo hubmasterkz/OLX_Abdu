@@ -1411,7 +1411,10 @@ initDB().then(async () => {
   app.listen(PORT, () => {
     console.log(`🚀 HUB MASTER (OLX-2 / Wazzup) бот запущен на порту ${PORT}`);
   });
-  await registerWazzupWebhook();
+  // ВНИМАНИЕ: вебхук Wazzup один на весь аккаунт и зарегистрирован на Нурике.
+  // Абдула НЕ регистрирует свой вебхук, иначе перебьёт адрес Нурика.
+  // Сообщения своего канала Абдула получает пересылкой от Нурика.
+  // await registerWazzupWebhook();
 }).catch(err => {
   console.error("❌ Ошибка инициализации БД:", err.message);
   process.exit(1);
