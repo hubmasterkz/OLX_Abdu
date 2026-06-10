@@ -25,7 +25,7 @@ const WAZZUP_API_URL    = "https://api.wazzup24.com/v3";
 const BOT_NAME          = "olx2"; // отдельные данные/нумерация в общей БД
 
 // Источник заявки (новый OLX-номер) и брендинг для Telegram
-const SOURCE_NUMBER = "OLX 2";
+const SOURCE_NUMBER = "OLX ABDULA";
 const SHOP_NAME     = "HUB MASTER";
 
 // CRM webhook (отправка заявок в Google Apps Script CRM)
