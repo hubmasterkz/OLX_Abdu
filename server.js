@@ -21,6 +21,7 @@ const WAZZUP_API_KEY    = process.env.WAZZUP_API_KEY;
 const WAZZUP_CHANNEL_ID = process.env.WAZZUP_CHANNEL_ID;
 const PORT              = process.env.PORT || 3000;
 const MODEL             = "claude-sonnet-4-5-20250929";
+const ANALYZE_MODEL     = "claude-haiku-4-5-20251001"; // дешёвая модель для фоновой аналитики (follow-up/отказ)
 const WAZZUP_API_URL    = "https://api.wazzup24.com/v3";
 const BOT_NAME          = "olx2"; // отдельные данные/нумерация в общей БД
 
@@ -645,7 +646,7 @@ async function analyzeDialog(phone) {
 
   try {
     const r = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: MODEL, max_tokens: 200, system: sys,
+      model: ANALYZE_MODEL, max_tokens: 200, system: sys,
       messages: [{ role: "user", content: transcript }],
     }, { headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" } });
     const txt = r.data.content.filter(b => b.type === "text").map(b => b.text).join("\n");
@@ -755,9 +756,9 @@ function buildSystemPrompt(clientCtx, knowledge) {
 
 `;
   }
-  return `Ты — Абдула, опытный консультант компании HUB MASTER в Казахстане.
+  const staticPrompt = `Ты — Абдула, опытный консультант компании HUB MASTER в Казахстане.
 Ты общаешься с клиентами в WhatsApp как живой человек, а не как робот.
-Твоя задача — помочь клиенту и довести до заявки на замер или вызов мастера.${contextBlock}
+Твоя задача — помочь клиенту и довести до заявки на замер или вызов мастера.
 
 САМОЕ ПЕРВОЕ СООБЩЕНИЕ — ЖЁСТКОЕ ПРАВИЛО
 Твой САМЫЙ первый ответ в диалоге ВСЕГДА начинается с приветствия, ДАЖЕ если клиент сразу написал размеры, количество, задачу или вопрос. Сначала поздоровайся и представься, и только потом — по делу.
@@ -923,6 +924,9 @@ HUB MASTER — сервис бытовых услуг по Казахстану.
 ДОПОЛНИТЕЛЬНАЯ БАЗА ЗНАНИЙ:
 ${knowledge || "(пока пустая)"}
 `;
+  const blocks = [{ type: "text", text: staticPrompt, cache_control: { type: "ephemeral" } }];
+  if (contextBlock) blocks.push({ type: "text", text: contextBlock });
+  return blocks;
 }
 
 // ── Claude API ───────────────────────────────────────────────
@@ -980,6 +984,7 @@ async function askClaude(userPhone, userMessage, imageBase64, imageMediaType) {
       }
     );
 
+    console.log("📊 usage:", JSON.stringify(response.data.usage || {}));
     let reply = response.data.content
       .filter(b => b.type === "text")
       .map(b => b.text.trim())
