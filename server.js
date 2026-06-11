@@ -1,8 +1,7 @@
 /**
- * HUB MASTER — OLX-2 (окна, сетки, решётки, ремонт окон)
- * WhatsApp бот на базе Claude + Wazzup24 (новый OLX-номер, отдельный трафик)
- * Профиль и промпт — как у Абылайхана. База знаний — общая (таблица knowledge).
- * Хранилище: PostgreSQL (общая база)
+ * OLX ABDULA — Абдула (окна, сетки, решётки, ремонт окон, изготовление окон)
+ * WhatsApp бот на базе Claude + Wazzup24 (ещё один OLX-номер на общем аккаунте)
+ * База знаний — общая (таблица knowledge). Хранилище: PostgreSQL (общая база)
  */
 
 require("dotenv").config();
@@ -21,17 +20,16 @@ const WAZZUP_API_KEY    = process.env.WAZZUP_API_KEY;
 const WAZZUP_CHANNEL_ID = process.env.WAZZUP_CHANNEL_ID;
 const PORT              = process.env.PORT || 3000;
 const MODEL             = "claude-sonnet-4-5-20250929";
-const ANALYZE_MODEL     = "claude-haiku-4-5-20251001"; // дешёвая модель для фоновой аналитики (follow-up/отказ)
 const WAZZUP_API_URL    = "https://api.wazzup24.com/v3";
-const BOT_NAME          = "olx2"; // отдельные данные/нумерация в общей БД
+const BOT_NAME          = "abdula"; // отдельные данные/нумерация в общей БД
 
-// Источник заявки (новый OLX-номер) и брендинг для Telegram
-const SOURCE_NUMBER = "OLX ABDULA";
-const SHOP_NAME     = "HUB MASTER";
+// Источник заявки и брендинг для Telegram
+const SOURCE_NUMBER = "OLX Abdula";
+const SHOP_NAME     = "OLX Abdula";
 
 // CRM webhook (отправка заявок в Google Apps Script CRM)
-const CRM_WEBHOOK_URL    = process.env.CRM_WEBHOOK_URL || "";
-const CRM_WEBHOOK_SECRET = process.env.CRM_WEBHOOK_SECRET || "";
+const CRM_WEBHOOK_URL    = process.env.CRM_WEBHOOK_URL || "https://script.google.com/macros/s/AKfycbwojTX7O0UaOmE4K4EqDmEsrCXxyJTj6MYHmzv1eDalDGeJOr8s034sp4UGmer6BFkG/exec";
+const CRM_WEBHOOK_SECRET = process.env.CRM_WEBHOOK_SECRET || "hubmaster_crm_2026";
 const CRM_SEND_UPDATES   = String(process.env.CRM_SEND_UPDATES || "false").toLowerCase() === "true";
 
 // ── PostgreSQL ──────────────────────────────────────────────
@@ -93,7 +91,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE paused_chats ADD COLUMN IF NOT EXISTS bot TEXT DEFAULT 'ablaikhan';`).catch(() => {});
   await pool.query(`ALTER TABLE daily_activity ADD COLUMN IF NOT EXISTS bot TEXT DEFAULT 'ablaikhan';`).catch(() => {});
 
-  console.log("✅ БД инициализирована (OLX-2)");
+  console.log("✅ БД инициализирована (OLX ABDULA / Абдула)");
 }
 
 // ── Knowledge ───────────────────────────────────────────────
@@ -646,7 +644,7 @@ async function analyzeDialog(phone) {
 
   try {
     const r = await axios.post("https://api.anthropic.com/v1/messages", {
-      model: ANALYZE_MODEL, max_tokens: 200, system: sys,
+      model: MODEL, max_tokens: 200, system: sys,
       messages: [{ role: "user", content: transcript }],
     }, { headers: { "Content-Type": "application/json", "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" } });
     const txt = r.data.content.filter(b => b.type === "text").map(b => b.text).join("\n");
@@ -756,15 +754,15 @@ function buildSystemPrompt(clientCtx, knowledge) {
 
 `;
   }
-  const staticPrompt = `Ты — Абдула, опытный консультант компании HUB MASTER в Казахстане.
+  return `Ты — Юрий, опытный консультант компании OLX ABDULA в Казахстане.
 Ты общаешься с клиентами в WhatsApp как живой человек, а не как робот.
-Твоя задача — помочь клиенту и довести до заявки на замер или вызов мастера.
+Твоя задача — помочь клиенту и довести до заявки на замер или вызов мастера.${contextBlock}
 
 САМОЕ ПЕРВОЕ СООБЩЕНИЕ — ЖЁСТКОЕ ПРАВИЛО
 Твой САМЫЙ первый ответ в диалоге ВСЕГДА начинается с приветствия, ДАЖЕ если клиент сразу написал размеры, количество, задачу или вопрос. Сначала поздоровайся и представься, и только потом — по делу.
-Первая строка первого ответа ВСЕГДА: «Здравствуйте! Я Абдула, консультант HUB MASTER 😊»
+Первая строка первого ответа ВСЕГДА: «Здравствуйте! Я Юрий, консультант OLX ABDULA 😊»
 Дальше в этом же сообщении можешь сразу ответить по сути (задать уточняющий вопрос или повести на замер).
-Пример: клиент пишет «129х52 - 1 шт» → ты: «Здравствуйте! Я Абдула, консультант HUB MASTER 😊 По размерам сориентирует мастер на бесплатном замере. В каком вы городе?»
+Пример: клиент пишет «129х52 - 1 шт» → ты: «Здравствуйте! Я Юрий, консультант OLX ABDULA 😊 По размерам сориентирует мастер на бесплатном замере. В каком вы городе?»
 Больше НИКОГДА не здоровайся и не представляйся повторно — только в первом сообщении.
 
 ПРАВИЛО КРАТКОСТИ — АБСОЛЮТНЫЙ ПРИОРИТЕТ
@@ -777,7 +775,7 @@ function buildSystemPrompt(clientCtx, knowledge) {
 - Скидку упоминай один раз вскользь — не делай из неё отдельный абзац.
 
 О КОМПАНИИ
-HUB MASTER — сервис бытовых услуг по Казахстану. Более 70 000 заказов, оценка 4.9, гарантия 12 месяцев, замер бесплатно, выезд в день обращения.
+OLX ABDULA — изготовление и установка окон, москитных сеток, решёток, ремонт окон по Казахстану. Гарантия 12 месяцев, выезд в день обращения. Замер сеток, решёток и ремонта бесплатный; замер для изготовления окон — платный (см. ниже).
 
 МЕНЕДЖЕРЫ ПО ОКНАМ (выдавать только после оформления / при вопросе о статусе)
 - Алматы → Халид +7 747 654 7980
@@ -827,8 +825,15 @@ HUB MASTER — сервис бытовых услуг по Казахстану.
 ЕСЛИ КЛИЕНТ ПРОСИТ ПРАЙС:
 Одной строкой: «Сетки от 7 000 тг, антикошка от 12 000, антимошка от 15 000, антипыль от 18 000. Точная цена — после замера, он бесплатный. Записать?»
 
+ИЗГОТОВЛЕНИЕ И УСТАНОВКА ОКОН (пластиковые окна на заказ) — ОСОБЫЙ СЦЕНАРИЙ:
+По окнам действуй как по проекту:
+→ Сначала спроси: «У вас есть готовый проект, чертёж или размеры окон?»
+→ ЕСЛИ ЕСТЬ (есть размеры/чертёж/референс): оформи [ЗАЯВКА], услуга «Изготовление окон», все размеры и детали — в Комментарий, добавь «есть размеры/проект, передать менеджеру на расчёт». Менеджер свяжется и посчитает. Цену сам НЕ называй.
+→ ЕСЛИ НЕТ размеров: предложи выезд замерщика за 10 000 тг. Скажи: «Замер окон у нас платный — 10 000 тг, но при заключении договора эта сумма вычитается из стоимости. Мастер приедет, точно замерит и рассчитает. Оформляем?» Если согласен — собери имя, телефон, город, адрес и оформи [ЗАЯВКА], услуга «Изготовление окон», в Комментарий «нужен платный замер 10 000».
+→ Это правило про платный замер 10 000 относится ТОЛЬКО к изготовлению/установке пластиковых окон. На сетки, плиссе, решётки и ремонт окон замер БЕСПЛАТНЫЙ — там действуй как обычно.
+
 КАК ВЕСТИ ДИАЛОГ
-1. Сразу закрывай на замер. «Нужна сетка» → «Мастер бесплатно приедет и подберёт. В каком вы городе?»
+1. Сразу закрывай на замер. «Нужна сетка» → «Мастер бесплатно приедет и подберёт. В каком вы городе?» «Нужна сетка» → «Мастер бесплатно приедет и подберёт. В каком вы городе?»
 2. Типы сеток — только если клиент сам спросил «какие есть варианты».
 3. Контактные данные собирай один раз в конце.
 4. Один вопрос за раз.
@@ -924,30 +929,9 @@ HUB MASTER — сервис бытовых услуг по Казахстану.
 ДОПОЛНИТЕЛЬНАЯ БАЗА ЗНАНИЙ:
 ${knowledge || "(пока пустая)"}
 `;
-  const blocks = [{ type: "text", text: staticPrompt, cache_control: { type: "ephemeral" } }];
-  if (contextBlock) blocks.push({ type: "text", text: contextBlock });
-  return blocks;
 }
 
 // ── Claude API ───────────────────────────────────────────────
-// Вырезает служебные теги ([ЗАЯВКА]/[ПОЗВОНИТЬ]/[ЖАЛОБА]) и всё после них —
-// клиент НЕ должен видеть сырые теги и поля заявки.
-function stripTagsForClient(text) {
-  if (!text) return text;
-  let t = text;
-  const idx = Math.min(
-    ...["[ЗАЯВКА]", "[ПОЗВОНИТЬ]", "[ЖАЛОБА]"]
-      .map(tag => t.indexOf(tag))
-      .filter(i => i >= 0)
-  );
-  if (isFinite(idx) && idx >= 0) t = t.slice(0, idx);
-  // подчистим хвостовые пустые строки и пробелы
-  t = t.replace(/\s+$/g, "").trim();
-  // если после вырезания ничего не осталось — короткая нейтральная фраза
-  if (!t) t = "Передал! Менеджер скоро свяжется 😊";
-  return t;
-}
-
 async function askClaude(userPhone, userMessage, imageBase64, imageMediaType) {
   const history = await loadHistory(userPhone);
 
@@ -984,7 +968,6 @@ async function askClaude(userPhone, userMessage, imageBase64, imageMediaType) {
       }
     );
 
-    console.log("📊 usage:", JSON.stringify(response.data.usage || {}));
     let reply = response.data.content
       .filter(b => b.type === "text")
       .map(b => b.text.trim())
@@ -1154,7 +1137,7 @@ function bufferIncoming(from, text) {
     delete messageBuffers[from];
     try {
       const reply = await askClaude(from, combined);
-      await sendWhatsApp(from, stripTagsForClient(reply));
+      await sendWhatsApp(from, reply);
       if (!reply.includes("[ЗАЯВКА]") && !reply.includes("[ПОЗВОНИТЬ]")) {
         resetRejectTimer(from);
       } else {
@@ -1186,7 +1169,7 @@ async function handleImage(from, message) {
     const mediaType = imgResp.headers["content-type"] || "image/jpeg";
     const userText = caption || "Клиент прислал фото — посмотри что на нём и помоги.";
     const reply = await askClaude(from, userText, base64, mediaType);
-    await sendWhatsApp(from, stripTagsForClient(reply));
+    await sendWhatsApp(from, reply);
   } catch (err) {
     console.error("Image error:", err.message);
     await sendWhatsApp(from, "Не получилось загрузить фото 🙏 Напишите размеры текстом — помогу.");
@@ -1272,7 +1255,7 @@ async function buildDailyReport(targetAlmatyDate) {
   }
 
   const dateLabel = targetAlmatyDate.split("-").reverse().join(".");
-  let report = `📊 СТАТИСТИКА ЗА СУТКИ — OLX Abdula\n`;
+  let report = `📊 СТАТИСТИКА ЗА СУТКИ — ${SHOP_NAME}\n`;
   report += `📅 ${dateLabel}\n\n`;
   report += `💬 Всего диалогов: ${totalDialogs}\n`;
   report += `✅ Оформлено: ${oformleno} (заявок: ${leadsCount}, звонков: ${callbackCount})\n`;
@@ -1368,7 +1351,7 @@ app.get("/paused", async (req, res) => {
   res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Паузы</title>
     <style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%}
     td,th{padding:8px;border:1px solid #ddd}input,button{padding:8px;margin:4px}</style></head>
-    <body><h1>⏸ Управление чатами — OLX-2</h1>
+    <body><h1>⏸ Управление чатами — OLX ABDULA (Юрий)</h1>
     <form method="POST" action="/paused/add">
       <input name="phone" placeholder="номер клиента" required>
       <input type="password" name="password" placeholder="пароль" required>
@@ -1434,11 +1417,11 @@ async function registerWazzupWebhook() {
 // ── Старт ────────────────────────────────────────────────────
 initDB().then(async () => {
   app.listen(PORT, () => {
-    console.log(`🚀 HUB MASTER (OLX-2 / Wazzup) бот запущен на порту ${PORT}`);
+    console.log(`🚀 OLX ABDULA (Юрий / Wazzup) бот запущен на порту ${PORT}`);
   });
   // ВНИМАНИЕ: вебхук Wazzup один на весь аккаунт и зарегистрирован на Нурике.
-  // Абдула НЕ регистрирует свой вебхук, иначе перебьёт адрес Нурика.
-  // Сообщения своего канала Абдула получает пересылкой от Нурика.
+  // Юрий НЕ регистрирует свой вебхук, иначе перебьёт адрес Нурика.
+  // Сообщения своего канала Юрий получает пересылкой от Нурика.
   // await registerWazzupWebhook();
 }).catch(err => {
   console.error("❌ Ошибка инициализации БД:", err.message);
@@ -1449,7 +1432,7 @@ function adminPage(knowledge) {
   return `<!DOCTYPE html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>HUB MASTER — Обучение бота</title>
+<title>OLX ABDULA — Обучение бота</title>
 <style>
   body{font-family:-apple-system,Arial;background:#0F2744;color:#fff;margin:0;padding:20px}
   .card{max-width:800px;margin:0 auto;background:#fff;color:#000;border-radius:16px;padding:24px}
@@ -1460,7 +1443,7 @@ function adminPage(knowledge) {
   label{font-weight:bold;display:block;margin-top:16px}
 </style></head>
 <body><div class="card">
-  <h1>🤖 Обучение бота HUB MASTER (OLX-2)</h1>
+  <h1>🤖 Обучение бота OLX ABDULA (Юрий)</h1>
   <form method="POST" action="/admin/save">
     <label>База знаний:</label>
     <textarea name="knowledge">${knowledge.replace(/</g, "&lt;")}</textarea>
