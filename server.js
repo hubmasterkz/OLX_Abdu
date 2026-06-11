@@ -926,6 +926,24 @@ ${knowledge || "(пока пустая)"}
 }
 
 // ── Claude API ───────────────────────────────────────────────
+// Вырезает служебные теги ([ЗАЯВКА]/[ПОЗВОНИТЬ]/[ЖАЛОБА]) и всё после них —
+// клиент НЕ должен видеть сырые теги и поля заявки.
+function stripTagsForClient(text) {
+  if (!text) return text;
+  let t = text;
+  const idx = Math.min(
+    ...["[ЗАЯВКА]", "[ПОЗВОНИТЬ]", "[ЖАЛОБА]"]
+      .map(tag => t.indexOf(tag))
+      .filter(i => i >= 0)
+  );
+  if (isFinite(idx) && idx >= 0) t = t.slice(0, idx);
+  // подчистим хвостовые пустые строки и пробелы
+  t = t.replace(/\s+$/g, "").trim();
+  // если после вырезания ничего не осталось — короткая нейтральная фраза
+  if (!t) t = "Передал! Менеджер скоро свяжется 😊";
+  return t;
+}
+
 async function askClaude(userPhone, userMessage, imageBase64, imageMediaType) {
   const history = await loadHistory(userPhone);
 
@@ -1131,7 +1149,7 @@ function bufferIncoming(from, text) {
     delete messageBuffers[from];
     try {
       const reply = await askClaude(from, combined);
-      await sendWhatsApp(from, reply);
+      await sendWhatsApp(from, stripTagsForClient(reply));
       if (!reply.includes("[ЗАЯВКА]") && !reply.includes("[ПОЗВОНИТЬ]")) {
         resetRejectTimer(from);
       } else {
@@ -1163,7 +1181,7 @@ async function handleImage(from, message) {
     const mediaType = imgResp.headers["content-type"] || "image/jpeg";
     const userText = caption || "Клиент прислал фото — посмотри что на нём и помоги.";
     const reply = await askClaude(from, userText, base64, mediaType);
-    await sendWhatsApp(from, reply);
+    await sendWhatsApp(from, stripTagsForClient(reply));
   } catch (err) {
     console.error("Image error:", err.message);
     await sendWhatsApp(from, "Не получилось загрузить фото 🙏 Напишите размеры текстом — помогу.");
@@ -1249,7 +1267,7 @@ async function buildDailyReport(targetAlmatyDate) {
   }
 
   const dateLabel = targetAlmatyDate.split("-").reverse().join(".");
-  let report = `📊 СТАТИСТИКА ЗА СУТКИ — ${SHOP_NAME}\n`;
+  let report = `📊 СТАТИСТИКА ЗА СУТКИ — OLX Abdula\n`;
   report += `📅 ${dateLabel}\n\n`;
   report += `💬 Всего диалогов: ${totalDialogs}\n`;
   report += `✅ Оформлено: ${oformleno} (заявок: ${leadsCount}, звонков: ${callbackCount})\n`;
