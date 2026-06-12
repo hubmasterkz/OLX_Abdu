@@ -1453,3 +1453,25 @@ function adminPage(knowledge) {
   </form>
 </div></body></html>`;
 }
+const BOOT_TIME = new Date().toISOString();
+
+// ── /version — что реально задеплоено (сверка прода с репой) ──
+app.get("/version", (req, res) => {
+  let greetingBrand = "—";
+  try {
+    const sys = buildSystemPrompt(null, "");
+    let m = sys.match(/консультант\s+(?:компании\s+)?([^\n😊]+?)\s*😊/);
+    if (!m) m = sys.match(/консультант компании ([^\n]+?) в Казахстане/);
+    greetingBrand = m ? m[1].trim() : "—";
+  } catch (e) { greetingBrand = "buildSystemPrompt N/A"; }
+  res.json({
+    bot: BOT_NAME,
+    shop: SHOP_NAME,
+    source: SOURCE_NUMBER,
+    greetingBrand,                                   // каким брендом бот реально представляется клиенту
+    gitRepo:   process.env.RAILWAY_GIT_REPO_NAME   || "—",
+    gitBranch: process.env.RAILWAY_GIT_BRANCH      || "—",
+    gitCommit: (process.env.RAILWAY_GIT_COMMIT_SHA || "—").slice(0, 8),
+    bootedAt:  BOOT_TIME,
+  });
+});
